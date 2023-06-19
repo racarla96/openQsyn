@@ -1,10 +1,14 @@
 classdef qpar  < matlab.mixin.CustomDisplay
 %QPAR class defines a single uncertain parameter in qpenQsyn. 
 %
-%   par = QPAR(name,nom,lbnd,ubnd)   defines a qpar object with specified 
-%   name, nominal value, lower bound, and upper bound.
+%   par = QPAR(name, nom, lbnd, ubnd, cases, space)   
+%   defines a qpar object with specified 
+%   name, nominal value, lower bound, upper bound, number of cases and
+%   generation space {linear ('lin') or logarithmic ('log')}.
 %
-%For a list QPAR methods type: methods qspc
+%   #TODO: Generate the linear or logarithmic space.
+%
+%For a list QPAR methods type: methods qpar
 %For help on a specific methods type: help qpar/<method>
 
     properties
@@ -13,49 +17,65 @@ classdef qpar  < matlab.mixin.CustomDisplay
         lower       % lower bound
         upper       % upper bound
         cases       % number of cases
+        space       % generation space
         discrete    % discrete values
         description % user can insert here whatever he likes.
     end
     
     methods
-        function par = qpar(name,nom,lbnd,ubnd,cases)
+        function par = qpar(name, nom, lbnd, ubnd, cases, space)
             %QPAR Construct an instance of this class
             %   
             %   Usage: 
             %
-            %   par = qpar(name,nom,lbnd,ubnd)   defines a qpar object with
+            %   par = qpar(name, nom)   
+            %   defines a qpar object with
+            %   specified name, nominal value without bounds,
+            %   the bounds equals to the nominal value,
+            %   and the number of cases equals to 1.
+            %
+            %   par = qpar(name, nom, lbnd, ubnd) 
+            %   defines a qpar object with
             %   specifiey name, nominal value, lower bound and upper bound
+            %   and the number of cases equals to 3.
             %
-            %   par = qpar(name,nom,lbnd,ubnd,cases)    also specify number
-            %   of cases (def=3)
-            %
-            %   par = qpar(name,nom,vals,'disc')   defines a discrete qpar            
-            
-            if nargin==4 && strcmp(ubnd,'disc')
-                par.discrete=lbnd;
-                cases=length(lbnd);
-                ubnd=lbnd(end);
-                lbnd=lbnd(1);
-            elseif nargin==4 && isnumeric(ubnd)
-                cases = 3;
-                disp('3 cases are selected as default');
-            elseif nargin==0
-                par = qpar.empty;
-                return; % empty qpar object 
-            elseif nargin ~=5
+            %   par = qpar(name, nom, lbnd, ubnd, cases) 
+            %   defines a qpar object with
+            %   specifiey name, nominal value, lower bound, upper bound and
+            %   the number of cases. By default, the space is linear.  
+
+            %   par = qpar(name, nom, lbnd, ubnd, cases, space) 
+            %   defines a qpar object with
+            %   specifiey name, nominal value, lower bound, upper bound,
+            %   the number of cases and space.
+
+            if nargin < 2 || nargin == 3 || nargin > 7
                 error('unexceptable number of argumetns to qpar')
             end
-            
-            % check input types
+            if (nargin > 2 && nargin < 5) 
+                cases = 3;
+            end
+            if nargin < 6, space = 'lin'; end
+  
+            % check input types and validation of values
             if ~ischar(name), error('qpar name must be a charecter array'); end
+            if ~isnumeric(nom), error('nominal value must be a numeric scalar'); end
+
+            if nargin == 2, cases = 1; lbnd = nom; ubnd = nom; end
+
             if ~isnumeric(lbnd), error('lower bound must be a numeric scalar'); end
             if ~isnumeric(ubnd), error('upper bound must be a numeric scalar'); end
-            if ~isnumeric(nom), error('nominal value must be a numeric scalar'); end
             if ~isnumeric(cases), error('number of cases must be an integer'); end
+            if ~ischar(space), error('space must be a charecter array'); end
+
             if any(size(ubnd)~=1), error('upper bound must be a numeric scalar'); end
             if any(size(lbnd)~=1), error('lower bound must be a numeric scalar'); end
             if any(size(nom)~=1), error('nominal value must be a numeric scalar'); end
+            if any(size(cases)~=1), error('number of cases must be a numeric scalar'); end
 
+            if lbnd > ubnd, error('upper bound must be greater than or equal to lower bound'); end
+            if (lbnd > nom || ubnd < nom), error('nominal value is not between bounds'); end
+            if (strcmp(space,'lin') == 0 && strcmp(space,'log') == 0), error('space is not equal to linear or logarithmic space'); end
                        
             % assign properties    
             par.name = name;
@@ -63,11 +83,7 @@ classdef qpar  < matlab.mixin.CustomDisplay
             par.lower = double(lbnd);
             par.upper = double(ubnd);
             par.cases = int32(cases);
-            
-            % check bounds
-            if (par.nominal > par.upper) || (par.nominal <par.lower)
-                warning('nominal value is not between bounds') 
-            end
+            par.space = space;
         end
         function obj = plus(A,B)
             %PLUS adds qpar elements 
